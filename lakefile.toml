@@ -1,0 +1,10 @@
+name = "lean4-mergesort"
+version = "0.1.0"
+defaultTargets = ["lean4-mergesort"]
+
+[[lean_lib]]
+name = "Lean4Mergesort"
+
+[[lean_exe]]
+name = "lean4-mergesort"
+root = "Main"
