@@ -1,4 +1,4 @@
-import Lean4Mergesort
+import Lean4Mergesort.Basic
 
 def main : IO Unit :=
-  IO.println s!"Hello World!"
+  runBenchmark 400000 10

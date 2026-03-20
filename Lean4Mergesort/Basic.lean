@@ -1,31 +1,5 @@
-def myMerge {α} (le : α → α → Bool) (xs ys : Array α) (ix iy : Nat) (work : Array α) (hwork : work.size = xs.size + ys.size) (hix : ix ≤ xs.size) (hiy : iy ≤ ys.size): { merged : Array α // merged.size = work.size } :=
-  if hix : ix < xs.size then
-    if hiy : iy < ys.size then
-      if le xs[ix] ys[iy]
-        then ⟨myMerge le xs ys (ix + 1) iy (work.set (ix+iy) xs[ix]) (by grind) (by grind) (by grind), (by grind)⟩
-        else ⟨myMerge le xs ys ix (iy + 1) (work.set (ix+iy) ys[iy]) (by grind) (by grind) (by grind), (by grind)⟩
-    else
-      ⟨myMerge le xs ys (ix + 1) iy (work.set (ix+iy) xs[ix]) (by grind) (by grind) (by grind), (by grind)⟩
-  else
-    if hiy : iy < ys.size then
-      ⟨myMerge le xs ys ix (iy + 1) (work.set (ix+iy) ys[iy]) (by grind) (by grind) (by grind), (by grind)⟩
-    else
-      ⟨work, rfl⟩
-
-def myMergeSort1 (xs aux : Array α) (le : α → α → Bool) (haux : xs.size = aux.size): { sorted : Array α // sorted.size = xs.size } :=
-  if h : xs.size ≤ 1
-  then ⟨xs, rfl⟩
-  else
-    let mid := xs.size / 2
-    let left := myMergeSort1 (xs.take mid) (aux.take mid) le (by grind)
-    let right := myMergeSort1 (xs.drop mid) (aux.drop mid) le (by grind)
-    have hlr : aux.size = left.val.size + right.val.size := by grind
-    ⟨myMerge le left.val right.val 0 0 aux hlr (by grind) (by grind), (by grind)⟩
-
-
+import Std
 def le_Nat (x y : Nat): Bool := x ≤ y
-def testValues : Array Nat := #[47, 13, 82, 6, 91, 34, 57, 23, 76, 41]
-#eval myMergeSort1 testValues testValues le_Nat rfl
 
 --this is not tail-recursive, so left and right are newly allocated every time!
 --> New idea: Bottom-up mergesort
@@ -66,5 +40,39 @@ def myMergeSort2 [Inhabited α] (xs : Array α) (le : α → α → Bool) : Arra
 
 
 def testValues2 : Array Nat := #[47, 13, 82, 6, 91, 34, 57, 23, 76, 41, 88, 3, 65, 29, 54, 17, 72, 39, 84, 11, 63, 28, 95, 42, 7, 56, 31, 78, 19, 67, 44, 90, 25, 58, 14, 83, 37, 62, 9, 71, 48, 26, 93, 15, 52, 38, 77, 22, 69, 4, 86, 33, 61, 18, 45, 79, 12, 57, 35, 81, 24, 68, 43, 96, 8, 53, 27, 74, 16, 89, 41, 64, 30, 55, 20, 73, 46, 85, 10, 60, 36, 92, 21, 49, 66, 32, 75, 5, 87, 40, 59, 28, 70, 38, 94, 50, 80, 2, 97, 44]
-#eval myMergeSort2 testValues2 le_Nat
-#eval (myMergeSort1 testValues2 testValues2 le_Nat (by decide) = myMergeSort2 testValues2 le_Nat)
+--#eval myMergeSort2 testValues2 le_Nat
+
+
+
+--set_option trace.compiler.ir.result true
+
+@[noinline]
+def myMergeSortIO [Inhabited α] (xs : Array α) (le : α → α → Bool) : IO (Array α) := do
+  return myMergeSort2 xs le
+
+private def shuffleIt {α : Type u} (xs : Array α) (gen : StdGen) : Array α :=
+  go xs gen 0
+where
+  go (xs : Array α) (gen : StdGen) (i : Nat) : Array α :=
+    if _ : i < xs.size - 1 then
+      let (j, gen) := randNat gen i (xs.size - 1)
+      let xs := xs.swapIfInBounds i j
+      go xs gen (i + 1)
+    else
+      xs
+
+def runBenchmark (n runs : Nat) : IO Unit := do
+  let seed := UInt64.toNat (ByteArray.toUInt64LE! (← IO.getRandomBytes 8))
+  let gen := mkStdGen seed
+  let arr := Array.range n
+  let shuffled := shuffleIt arr gen
+  IO.println s!"Doing {runs} runs on {n} elements:"
+  let mut results : Array Nat := Array.emptyWithCapacity runs
+  for _ in 0...runs do
+    let before ← Std.Time.Timestamp.now
+    discard <| myMergeSortIO shuffled (· ≤ ·)
+    let duration ← before.since
+    IO.print s!"{duration.toMilliseconds}ms "
+    results := results.push duration.toMilliseconds.toInt.toNat
+  IO.println s!"\nAverage: {results.sum / runs}ms"
+  return ()
