@@ -3,27 +3,29 @@ def le_Nat (x y : Nat): Bool := x ≤ y
 
 --this is not tail-recursive, so left and right are newly allocated every time!
 --> New idea: Bottom-up mergesort
-
+@[specialize]
 def copyFinalSlice (inp out : Array α) (start : Nat) : Array α :=
   if h : start < inp.size then --arrived at end?
-    copyFinalSlice inp (out.set! start inp[start]) (start + 1) --copy current value to same position in out, increase current index
+    copyFinalSlice inp (out.set start inp[start] sorry) (start + 1) --copy current value to same position in out, increase current index
   else
     out --if there is nothing left to copy, return
 
+@[specialize le]
 def myMerge_sliced {α} [Inhabited α] (le : α → α → Bool) (inp : Array α) (start mid last ix iy : Nat) (work : Array α) : Array α := --variation of myMerge w/o indexing proofs and on two full arrays, replacing xs and ys by slicing indices
   if ix < (mid - start) then --xs finished? (ix < len xs)
     if iy < (last - mid) then --ys finished? (iy < len ys)
-      if le inp[start+ix]! inp[mid+iy]! --comparison
-        then myMerge_sliced le inp start mid last (ix + 1) iy (work.set! (ix+iy+start) inp[start+ix]!) --if xs[ix] is smaller, it is written to the output at the correct location
-        else myMerge_sliced le inp start mid last ix (iy + 1) (work.set! (ix+iy+start) inp[mid+iy]!) -- else, it's ys[iy]
+      if le (inp[start+ix]'sorry) (inp[mid+iy]'sorry) --comparison
+        then myMerge_sliced le inp start mid last (ix + 1) iy (work.set (ix+iy+start) (inp[start+ix]'sorry) sorry) --if xs[ix] is smaller, it is written to the output at the correct location
+        else myMerge_sliced le inp start mid last ix (iy + 1) (work.set (ix+iy+start) (inp[mid+iy]'sorry) sorry) -- else, it's ys[iy]
     else
-      myMerge_sliced le inp start mid last (ix + 1) iy (work.set! (ix+iy+start) inp[start+ix]!) --if ys is done, but not xs, the next element from xs is copied
+      myMerge_sliced le inp start mid last (ix + 1) iy (work.set (ix+iy+start) (inp[start+ix]'sorry) sorry) --if ys is done, but not xs, the next element from xs is copied
   else
     if iy < (last - mid) then --ys finished?
-      myMerge_sliced le inp start mid last ix (iy + 1) (work.set! (ix+iy+start) inp[mid+iy]!) --if xs is done, but not ys, the next element from ys is copied
+      myMerge_sliced le inp start mid last ix (iy + 1) (work.set (ix+iy+start) (inp[mid+iy]'sorry) sorry) --if xs is done, but not ys, the next element from ys is copied
     else
       work --if both slices are done, return
 
+@[specialize le]
 partial def mMS2_helper [Inhabited α] (le : α → α → Bool) (arr1 arr2 : Array α) (i width : Nat) : Array α :=
     if width < arr1.size then --outer loop: runs till the whole list has been merged over
       if i < arr1.size then --inner loop: goes through all the couples to merge, then increases i (the start marker) by the range that was just processed
@@ -35,6 +37,7 @@ partial def mMS2_helper [Inhabited α] (le : α → α → Bool) (arr1 arr2 : Ar
       else mMS2_helper le arr2 arr1 0 (2*width) --if all couples have been merged, switch arrays and merge those with their new counterparts
     else arr1
 
+@[inline]
 def myMergeSort2 [Inhabited α] (xs : Array α) (le : α → α → Bool) : Array α :=
   mMS2_helper le xs xs 0 1 --copy xs one time as an auxiliary array, initialise i and width
 
